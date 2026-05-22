@@ -13,26 +13,8 @@ permissions:
 
 jobs:
   apply:
-    name: Apply - ${{ matrix.environment }}
+    name: Apply - ${{ github.ref_name }}
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - branch: dev
-            environment: dev
-            working_dir: environments/dev/aws
-          - branch: staging
-            environment: staging
-            working_dir: environments/staging/aws
-          - branch: main
-            environment: prod
-            working_dir: environments/prod/aws
-
-    if: |
-      (github.ref == 'refs/heads/dev' && matrix.branch == 'dev') ||
-      (github.ref == 'refs/heads/staging' && matrix.branch == 'staging') ||
-      (github.ref == 'refs/heads/main' && matrix.branch == 'main')
 
     steps:
       - name: Checkout
@@ -49,10 +31,21 @@ jobs:
         with:
           terraform_version: 1.15.4
 
+      - name: Set working directory
+        id: env
+        run: |
+          if [ "${{ github.ref_name }}" == "dev" ]; then
+            echo "working_dir=environments/dev/aws" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "staging" ]; then
+            echo "working_dir=environments/staging/aws" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            echo "working_dir=environments/prod/aws" >> $GITHUB_OUTPUT
+          fi
+
       - name: Terraform Init
-        working-directory: ${{ matrix.working_dir }}
+        working-directory: ${{ steps.env.outputs.working_dir }}
         run: terraform init -reconfigure
 
       - name: Terraform Apply
-        working-directory: ${{ matrix.working_dir }}
+        working-directory: ${{ steps.env.outputs.working_dir }}
         run: terraform apply -auto-approve
