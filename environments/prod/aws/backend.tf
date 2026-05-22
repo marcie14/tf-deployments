@@ -3,7 +3,7 @@ terraform {
     bucket         = "marciedev-tf-state"
     key            = "prod/aws/terraform.tfstate"
     region         = "us-east-2"
-    dynamodb_table = "tf-state-lock"
+    use_lockfile   = true
     encrypt        = true
   }
 }

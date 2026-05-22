@@ -16,7 +16,7 @@ module "vpc" {
 }
 
 module "ecs" {
-  source = "github.com/marcie14/tf-modules//modules/ecs-service?ref=ecs-service-v1.0.0"
+  source = "github.com/marcie14/tf-modules//modules/ecs-service?ref=ecs-service-v1.1.0"
 
   name        = "marciedev-dev"
   environment = "dev"
@@ -28,7 +28,8 @@ module "ecs" {
   public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.public_subnet_ids
 
-  desired_count = 1
+  assign_public_ip = true
+  desired_count    = 1
   cpu           = 256
   memory        = 512
   min_capacity  = 1
