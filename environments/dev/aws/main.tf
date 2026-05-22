@@ -37,5 +37,6 @@ module "ecs" {
 
   tags = {
     ManagedBy = "terraform"
+    Owner     = "marcie"
   }
 }
