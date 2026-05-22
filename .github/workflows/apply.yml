@@ -1,0 +1,58 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply:
+    name: Apply - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - branch: dev
+            environment: dev
+            working_dir: environments/dev/aws
+          - branch: staging
+            environment: staging
+            working_dir: environments/staging/aws
+          - branch: main
+            environment: prod
+            working_dir: environments/prod/aws
+
+    if: |
+      (github.ref == 'refs/heads/dev' && matrix.branch == 'dev') ||
+      (github.ref == 'refs/heads/staging' && matrix.branch == 'staging') ||
+      (github.ref == 'refs/heads/main' && matrix.branch == 'main')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.4
+
+      - name: Terraform Init
+        working-directory: ${{ matrix.working_dir }}
+        run: terraform init -reconfigure
+
+      - name: Terraform Apply
+        working-directory: ${{ matrix.working_dir }}
+        run: terraform apply -auto-approve

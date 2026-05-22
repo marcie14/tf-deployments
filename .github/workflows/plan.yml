@@ -1,0 +1,72 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - staging
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    name: Plan - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - branch: dev
+            environment: dev
+            working_dir: environments/dev/aws
+          - branch: staging
+            environment: staging
+            working_dir: environments/staging/aws
+          - branch: main
+            environment: prod
+            working_dir: environments/prod/aws
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.4
+
+      - name: Terraform Init
+        working-directory: ${{ matrix.working_dir }}
+        run: terraform init -reconfigure
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ matrix.working_dir }}
+        run: |
+          terraform plan -no-color 2>&1 | tee plan_output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Post Plan as PR Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ matrix.working_dir }}/plan_output.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Terraform Plan — \`${{ matrix.environment }}\`\n\`\`\`\n${truncated}\n\`\`\``
+            });
