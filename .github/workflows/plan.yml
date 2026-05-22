@@ -14,21 +14,8 @@ permissions:
 
 jobs:
   plan:
-    name: Plan - ${{ matrix.environment }}
+    name: Plan - ${{ github.base_ref }}
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - branch: dev
-            environment: dev
-            working_dir: environments/dev/aws
-          - branch: staging
-            environment: staging
-            working_dir: environments/staging/aws
-          - branch: main
-            environment: prod
-            working_dir: environments/prod/aws
 
     steps:
       - name: Checkout
@@ -45,13 +32,24 @@ jobs:
         with:
           terraform_version: 1.15.4
 
+      - name: Set working directory
+        id: env
+        run: |
+          if [ "${{ github.base_ref }}" == "dev" ]; then
+            echo "working_dir=environments/dev/aws" >> $GITHUB_OUTPUT
+          elif [ "${{ github.base_ref }}" == "staging" ]; then
+            echo "working_dir=environments/staging/aws" >> $GITHUB_OUTPUT
+          elif [ "${{ github.base_ref }}" == "main" ]; then
+            echo "working_dir=environments/prod/aws" >> $GITHUB_OUTPUT
+          fi
+
       - name: Terraform Init
-        working-directory: ${{ matrix.working_dir }}
+        working-directory: ${{ steps.env.outputs.working_dir }}
         run: terraform init -reconfigure
 
       - name: Terraform Plan
         id: plan
-        working-directory: ${{ matrix.working_dir }}
+        working-directory: ${{ steps.env.outputs.working_dir }}
         run: |
           terraform plan -no-color 2>&1 | tee plan_output.txt
           echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
@@ -62,11 +60,11 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('${{ matrix.working_dir }}/plan_output.txt', 'utf8');
+            const plan = fs.readFileSync('${{ steps.env.outputs.working_dir }}/plan_output.txt', 'utf8');
             const truncated = plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Terraform Plan — \`${{ matrix.environment }}\`\n\`\`\`\n${truncated}\n\`\`\``
+              body: `### Terraform Plan — \`${{ github.base_ref }}\`\n\`\`\`\n${truncated}\n\`\`\``
             });
