@@ -21,7 +21,8 @@ module "ecs" {
   name        = "marciedev-dev"
   environment = "dev"
 
-  container_image = "containous/whoami"
+  # container_image = "containous/whoami"
+  container_image = "nginxdemos/hello"
   container_port  = 80
 
   vpc_id             = module.vpc.vpc_id
