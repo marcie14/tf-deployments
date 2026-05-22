@@ -34,4 +34,8 @@ module "ecs" {
   memory        = 512
   min_capacity  = 1
   max_capacity  = 2
+
+  tags = {
+    ManagedBy = "terraform"
+  }
 }
